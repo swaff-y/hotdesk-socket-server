@@ -1,16 +1,30 @@
 const express = require('express');
 const router = express.Router();
-const Users = require("../models/users");
+const User = require("../models/users");
 const jwt = require("./jwt");
+const getUser = require("./getUser");
 const bcrypt = require("bcrypt");
 
 //get all users
 //curl -X GET -H 'authorization: Bearer xxx' http://localhost:3002/users
-router.get("/", jwt.authenticateToken, (req,res) => {
-  res.json(Users.all)
+router.get("/", jwt.authenticateToken, async (req,res) => {
+  try{
+    const users = await User.find();
+    res.status(200).json(users);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
-//Craete a user
+//Get One
+//curl -X GET -H 'authorization: Bearer xxx' http://localhost:3002/users/xxx
+//The "getSubscriber" middleware will get the subscriber with the id
+router.get("/:id", jwt.authenticateToken, getUser.byId, (req,res) => {
+  res.status(200).json(res.user);
+});
+
+
+//Create a user
 //curl -X POST -H "Content-Type: application/json" -d '{"email":"kyle@swaff.id.au", "password":"xxx"}' http://localhost:3002/users/ | jq
 router.post("/", async (req, res) => {
   try{
