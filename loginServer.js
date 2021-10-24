@@ -24,6 +24,12 @@ db.once('open', () => console.log('connected to database'));
 //express to use json
 app.use(express.json());
 
+//CORS
+const cors = require('cors');
+app.use(cors({
+    origin: '*'
+}));
+
 //controllers
 app.use('/login', require("./controllers/login"));
 app.use('/users', require("./controllers/users"));

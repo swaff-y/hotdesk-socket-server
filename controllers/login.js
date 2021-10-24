@@ -8,8 +8,8 @@ const getUser = require("./getUser");
 //curl -X POST -H "Content-Type: application/json" -d '{"email":"kyle@swaff.id.au", "password":"xxx"}' http://localhost:3002/login/
 router.post('/', async (req,res)=>{
   //Authenticate user
-  const user = await User.findOne({ email: req.body.email});
-  console.log(user);
+  const user = await User.findOne({ email: req.body.email });
+  console.log("User Request on http://localhost:3002/login/",req.body, "user: " + user);
 
   //take payload and seralize
   if(user)
