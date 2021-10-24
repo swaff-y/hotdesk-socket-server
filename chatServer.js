@@ -11,7 +11,7 @@ io.on('connection', socket => {
   socket.join(id)
 
   socket.on('send-message', ({recipients, text}) => {
-    console.log("wet fish:", text, recipients, id)
+    console.log("Message Sent: ", text, recipients, id)
     recipients.forEach(recipient=>{
       const newRecipents = recipients.filter(r => r !== recipient);
       newRecipents.push(id);
