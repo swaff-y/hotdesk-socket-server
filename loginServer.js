@@ -1,12 +1,15 @@
 require('dotenv').config()
 const express = require('express');
 const app = express();
+const port = process.env.LOGIN_PORT || 3002;
 
 //tell server we are using ejs
 app.set('view-engine', 'ejs')
 
 //Set the port
-app.listen(3002);
+app.listen(port, () => {
+	console.log(`Login Server is running on port ${port}...`);
+});
 
 //Require mongoose to connect to our mongodb database
 const mongoose = require('mongoose');
