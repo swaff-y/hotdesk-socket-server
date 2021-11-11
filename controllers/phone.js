@@ -3,8 +3,8 @@ const express = require('express');
 const router = express.Router();
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
-// const simulation = process.env.SIMULATION;
-const simulation = false;
+const simulation = process.env.SIMULATION;
+// const simulation = false;
 const ngrokBase = process.env.NGROK_BASE;
 const client = require('twilio')(accountSid, authToken);
 const fetch = require('node-fetch');
@@ -12,14 +12,18 @@ const fetch = require('node-fetch');
 module.exports = router;
 
 //outbound
+//curl http://localhost:3003/phone/outbound
 router.get('/outbound', (req,res) => {
+  // io.on("connection", (socket) => {
+  //   console.log("SocketId:",socket.id); // ojIckSD2jqNzOqIrAGzL
+  // });
 
   if(simulation){
-    const events = ['initiated', 'ringing', 'answered', 'completed']
+    const events = ['initiated', 'ringing', 'answered', 'completed'];
     for(let i = 0; i < 5; i++){
       // res.redirect(`/events?${testParams(i)}`);
       setTimeout(()=>{
-        fetch(`${ngrokBase}/phone/events?${testParams(i)}`)
+        fetch(`http://localhost:3003/phone/events?${testParams(i)}`)
         .then(result => {
         })
         .then(result=>{
@@ -36,7 +40,7 @@ router.get('/outbound', (req,res) => {
 });
 
 //inbound
-router.get('/', (req, res) => {
+router.get('/inbound', (req, res) => {
   console.log(req?.query?.CallSid);
   const twiml = `<Response><Dial callerId="${req?.query?.From}"><Number statusCallbackEvent="initiated ringing answered completed" statusCallback="${ngrokBase}/events" statusCallbackMethod="GET">+61450503662</Number></Dial><Say voice="alice">Goodbye</Say></Response>`;
   res.type('text/xml');
@@ -44,9 +48,12 @@ router.get('/', (req, res) => {
 });
 
 //events
-router.get('/', (req, res) => {
-  // console.log("The body:", req.body);
-  console.log(`The params (${req?.query?.CallSid}):`, req?.query?.To, req?.query?.CallStatus, req?.query);
+router.get('/events', (req, res) => {
+  const io = req.app.get('socketio');
+
+  io.emit("message", req?.query);
+
+  console.log(`The query (${req?.query?.CallSid}):`, req?.query?.To, req?.query?.CallStatus, req?.query);
   res.setHeader('content-type', 'text/plain');
   res.status(200).send(`${req?.query?.CallStatus}`);
 });
