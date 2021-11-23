@@ -1,0 +1,17 @@
+{
+  "ApiVersion": "2010-04-01",
+  "Called": "+61450503662",
+  "ParentCallSid": "CAaa84e8d035bdbc7d7e852036d47ad065",
+  "CallStatus": "in-progress",
+  "From": "+61450493936",
+  "Direction": "outbound-dial",
+  "Timestamp": "Wed, 10 Nov 2021 10:23:38 +0000",
+  "AccountSid": "AC4a75cab35277ba56632a6cffa4c0297c",
+  "CallbackSource": "call-progress-events",
+  "CalledVia": "+19595006980",
+  "Caller": "+61450493936",
+  "SequenceNumber": "2",
+  "CallSid": "CA0d4a8f6486f6657f3360dcec409b1a4a",
+  "To": "+61450503662",
+  "ForwardedFrom": "+19595006980"
+}

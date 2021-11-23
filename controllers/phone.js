@@ -12,27 +12,14 @@ const fetch = require('node-fetch');
 module.exports = router;
 
 //outbound
-//curl http://localhost:3003/phone/outbound
+//curl http://localhost:3003/phone/outbound?CallSid=ojIckSD2jqNzOqIrAGzL
 router.get('/outbound', (req,res) => {
-  // io.on("connection", (socket) => {
-  //   console.log("SocketId:",socket.id); // ojIckSD2jqNzOqIrAGzL
-  // });
-
   if(simulation){
-    const events = ['initiated', 'ringing', 'answered', 'completed'];
-    for(let i = 0; i < 5; i++){
-      // res.redirect(`/events?${testParams(i)}`);
-      setTimeout(()=>{
-        fetch(`http://localhost:3003/phone/events?${testParams(i)}`)
-        .then(result => {
-        })
-        .then(result=>{
-          res.send("Success");
-        })
-        .catch(err=>{
-        })
-      },i * 1000);
-    }
+    console.log("Outbound: ",req?.query?.CallSid);
+    const io = req.app.get('socketio');
+    io.emit("established", {CallType:"outbound", CallSid: req?.query?.CallSid, TimeStamp: Date.now()});
+
+    simulationDurations(req, res, "outbound");
   } else {
     const url = `${ngrokBase}/phone/events`;
     handleOutbound(client,url,req,res);
@@ -40,20 +27,25 @@ router.get('/outbound', (req,res) => {
 });
 
 //inbound
+//curl http://localhost:3003/phone/inbound?CallSid=ojIckSD2jqNzOqIrAGzL
 router.get('/inbound', (req, res) => {
-  console.log(req?.query?.CallSid);
-  const twiml = `<Response><Dial callerId="${req?.query?.From}"><Number statusCallbackEvent="initiated ringing answered completed" statusCallback="${ngrokBase}/events" statusCallbackMethod="GET">+61450503662</Number></Dial><Say voice="alice">Goodbye</Say></Response>`;
-  res.type('text/xml');
-  res.send(twiml);
+  console.log("Inbound: ",req?.query?.CallSid);
+  const io = req.app.get('socketio');
+  io.emit("established", {CallType:"inbound", CallSid: req?.query?.CallSid, TimeStamp: Date.now()});
+
+  if(simulation){
+    simulationDurations(req, res, "inbound");
+  }else{
+    handleInbound(req, res);
+  }
 });
 
 //events
 router.get('/events', (req, res) => {
   const io = req.app.get('socketio');
+  io.emit("events", req?.query);
 
-  io.emit("message", req?.query);
-
-  console.log(`The query (${req?.query?.CallSid}):`, req?.query?.To, req?.query?.CallStatus, req?.query);
+  console.log(`Events: (${req?.query?.CallSid}):`, req?.query?.To, req?.query?.CallStatus, req?.query);
   res.setHeader('content-type', 'text/plain');
   res.status(200).send(`${req?.query?.CallStatus}`);
 });
@@ -72,7 +64,11 @@ function handleOutbound(client,url,req,res)
     from: '+12673994326'
   })
   .then(call => {
-    console.log(call.sid);
+    console.log("Outbound: ", call.sid);
+
+    const io = req.app.get('socketio');
+    io.emit("established", {CallType:"outbound", CallSid: call.sid, TimeStamp: Date.now()});
+
     res.status(200).json({
       message: "Success"
     });
@@ -85,84 +81,78 @@ function handleOutbound(client,url,req,res)
   });
 }
 
-function testParams(i){
-  const events = ['initiated', 'ringing', 'answered', 'completed']
-  const forward = {
-    "AccountSid": "AC4a75cab35277ba56632a6cffa4c0297c",
-    "ApiVersion": "2010-04-01",
-    "CallSid": "CA177a1dd0565651e5b5fc3cc44bfdef88",
-    "CallStatus": "in-progress",
-    "Called": "+61450493936",
-    "CalledCity": "",
-    "CalledCountry": "AU",
-    "CalledState": "",
-    "CalledZip": "",
-    "Caller": "+12673994326",
-    "CallerCity": "YARDLEY",
-    "CallerCountry": "US",
-    "CallerState": "PA",
-    "CallerZip": "19067",
-    "DialCallDuration": "3",
-    "DialCallSid": "CA37b899f415fe427612e7a08b645c6918",
-    "DialCallStatus": "completed",
-    "Direction": "outbound-api",
-    "From": "+12673994326",
-    "FromCity": "YARDLEY",
-    "FromCountry": "US",
-    "FromState": "PA",
-    "FromZip": "19067",
-    "To": "+61450493936",
-    "ToCity": "",
-    "ToCountry": "AU",
-    "ToState": "",
-    "ToZip": ""
-  };
-  const back = {
-    "Called": "+61450493936",
-    "ToState": "",
-    "CallerCountry": "US",
-    "Direction": "outbound-api",
-    "Timestamp": "Tue, 09 Nov 2021 08:32:46 +0000",
-    "CallbackSource": "call-progress-events",
-    "CallerState": "PA",
-    "ToZip": "",
-    "SequenceNumber": "0",
-    "CallSid": "CA177a1dd0565651e5b5fc3cc44bfdef88",
-    "To": "+61450493936",
-    "CallerZip": "19067",
-    "ToCountry": "AU",
-    "CalledZip": "",
-    "ApiVersion": "2010-04-01",
-    "CalledCity": "",
-    "From": "+12673994326",
-    "AccountSid": "AC4a75cab35277ba56632a6cffa4c0297c",
-    "CalledCountry": "AU",
-    "CallerCity": "YARDLEY",
-    "ToCity": "",
-    "FromCountry": "US",
-    "Caller": "+12673994326",
-    "FromCity": "YARDLEY",
-    "CalledState": "",
-    "FromZip": "19067",
-    "FromState": "PA"
-  };
-  if(i === 4){
-    back.CallStatus = events[i - 1];
-  }else{
-    back.CallStatus = events[i];
+function handleInbound(req, res){
+  const twiml = `<Response><Dial callerId="${req?.query?.From}"><Number statusCallbackEvent="initiated ringing answered completed" statusCallback="${ngrokBase}/events" statusCallbackMethod="GET">+61450503662</Number></Dial><Say voice="alice">Goodbye</Say></Response>`;
+  res.type('text/xml');
+  res.send(twiml);
+}
+
+function simulationDurations(req, res, type){
+  let events = [];
+  if(type === "inbound"){
+    events = ['initiated', 'ringing', 'answered', 'completed'];
+  } else {
+    events = ['initiated', 'ringing', 'answered', 'initiatedB', 'ringingB', 'answeredB', 'completedB', 'completed'];
   }
-  const forwardArr = Object.keys(forward);
-  const forArr = [];
-  for(let i = 0; i < forwardArr.length; i++){
-    forArr.push(`${forwardArr[i]}=${forward[forwardArr[i]]}`);
-  };
-  const backArr = Object.keys(back);
-  const baArr = [];
-  for(let i = 0; i < backArr.length; i++){
-    baArr.push(`${backArr[i]}=${back[backArr[i]]}`);
-  };
-  if(i === 3)
-    return forArr.join("&");
-  else
-    return baArr.join("&");
+
+  for(let i = 0; i < events.length; i++){
+    const action = events[i];
+    let data = {}
+    if(type === "inbound"){
+      data = require(`../simulations/inbound/${action}.json`);
+    } else {
+      data = require(`../simulations/outbound/${action}.json`);
+    }
+
+    let eventDuration = 1000;
+    switch(action){
+      case "initiated":
+        eventDuration = eventDuration - 999;
+      break;
+      case "initiatedB":
+        eventDuration = eventDuration * 3.01;
+      break;
+      case "ringing":
+        eventDuration = eventDuration * 1;
+      break;
+      case "ringingB":
+        eventDuration = eventDuration * 4;
+      break;
+      case "answered":
+        eventDuration = eventDuration * 3;
+      break;
+      case "answeredB":
+        eventDuration = eventDuration * 5;
+      break;
+      case "completed":
+        eventDuration = eventDuration * 20;
+      break;
+      case "completedB":
+        eventDuration = eventDuration * 21;
+      break;
+      default:
+        eventDuration = eventDuration * 1;
+    }
+
+    const dataArr = Object.keys(data);
+    const strArr = [];
+    for( let i = 0; i < dataArr.length; i++ ){
+      const param = dataArr[i];
+
+      strArr.push(`${param}=${data[param]}`);
+    }
+
+    let str = strArr.join("&")
+
+    setTimeout(()=>{
+      fetch(`http://localhost:3003/phone/events?${str}`)
+      .then(result => {
+      })
+      .then(result=>{
+        res.send("Success");
+      })
+      .catch(err=>{
+      })
+    },eventDuration);
+  }
 }
