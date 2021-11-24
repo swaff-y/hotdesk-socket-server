@@ -8,21 +8,27 @@ const simulation = process.env.SIMULATION;
 const ngrokBase = process.env.NGROK_BASE;
 const client = require('twilio')(accountSid, authToken);
 const fetch = require('node-fetch');
+const Phone = require("../models/phone");
 
 module.exports = router;
 
 //outbound
-//curl http://localhost:3003/phone/outbound?CallSid=ojIckSD2jqNzOqIrAGzL
-router.get('/outbound', (req,res) => {
-  if(simulation){
-    console.log("Outbound: ",req?.query?.CallSid);
-    const io = req.app.get('socketio');
-    io.emit("established", {CallType:"outbound", CallSid: req?.query?.CallSid, TimeStamp: Date.now()});
+//curl http://localhost:3003/phone/outbound?PhoneNumber=61450503662
+router.get('/outbound', async (req,res) => {
+  if(!req?.query?.PhoneNumber){
+    return res.status(400).json({message: "Please include phone number"})
+  }
 
-    simulationDurations(req, res, "outbound");
-  } else {
-    const url = `${ngrokBase}/phone/events`;
-    handleOutbound(client,url,req,res);
+  try{
+    let contact = await Phone.findOne({ dnid: req.query.PhoneNumber});
+    if(!contact){
+      const contactDNID = { dnid: req.query.PhoneNumber };
+      contact = await Phone.create(contactDNID);
+    }
+    outboundRequest(req,res);
+  } catch(err) {
+    console.error("Unsuccessful request: ", err);
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -41,16 +47,54 @@ router.get('/inbound', (req, res) => {
 });
 
 //events
-router.get('/events', (req, res) => {
+router.get('/events', async (req, res) => {
+    let contactFrom;
+    let contactTo;
+  try {
+      contactFrom = await Phone.findOne({ dnid: req?.query?.From});
+      contactTo = await Phone.findOne({ dnid: req?.query?.To});
+
+    if(contactFrom){
+      req.query.ContactIdFrom = contactFrom.id;
+      req.query.FirstNameFrom = contactFrom.firstName;
+      req.query.LastNameFrom = contactFrom.lastName;
+    }
+    if(contactTo){
+      req.query.ContactIdTo = contactTo.id;
+      req.query.FirstNameTo = contactTo.firstName;
+      req.query.LastNameTo = contactTo.lastName;
+    }
+    handleEvents(req,res)
+  } catch (err) {
+    console.error("Unsuccessful request: ", err);
+    res.status(500).json({ message: err.message });
+  }
+
+});
+
+//functions
+function handleEvents(req,res){
   const io = req.app.get('socketio');
   io.emit("events", req?.query);
 
   console.log(`Events: (${req?.query?.CallSid}):`, req?.query?.To, req?.query?.CallStatus, req?.query);
   res.setHeader('content-type', 'text/plain');
   res.status(200).send(`${req?.query?.CallStatus}`);
-});
+}
 
-//functions
+function outboundRequest(req,res){
+  if(simulation){
+    console.log("Outbound: ",req?.query?.CallSid);
+    const io = req.app.get('socketio');
+    io.emit("established", {CallType:"outbound", CallSid: req?.query?.CallSid, TimeStamp: Date.now()});
+
+    simulationDurations(req, res, "outbound");
+  } else {
+    const url = `${ngrokBase}/phone/events`;
+    handleOutbound(client,url,req,res);
+  }
+}
+
 function handleOutbound(client,url,req,res)
 {
   client.calls
