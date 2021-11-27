@@ -8,7 +8,8 @@ const simulation = process.env.SIMULATION;
 const ngrokBase = process.env.NGROK_BASE;
 const client = require('twilio')(accountSid, authToken);
 const fetch = require('node-fetch');
-const Phone = require("../models/phone");
+const Contact = require("../models/contact");
+const Interaction = require("../models/interaction");
 
 module.exports = router;
 
@@ -20,11 +21,11 @@ router.get('/outbound', async (req,res) => {
   }
 
   try{
-    let contact = await Phone.findOne({ dnid: req.query.PhoneNumber});
-    if(!contact){
-      const contactDNID = { dnid: req.query.PhoneNumber };
-      contact = await Phone.create(contactDNID);
-    }
+    // let contact = await Contact.findOne({ dnid: req.query.PhoneNumber});
+    // if(!contact){
+    //   const contactDNID = { dnid: req.query.PhoneNumber };
+    //   contact = await Contact.create(contactDNID);
+    // }
     outboundRequest(req,res);
   } catch(err) {
     console.error("Unsuccessful request: ", err);
@@ -48,28 +49,64 @@ router.get('/inbound', (req, res) => {
 
 //events
 router.get('/events', async (req, res) => {
-    let contactFrom;
-    let contactTo;
+  console.log(`Event_${req?.query.CallSid} ->`)
+  let contactFrom;
+  let contactTo;
+  let interaction;
   try {
-      contactFrom = await Phone.findOne({ dnid: req?.query?.From});
-      contactTo = await Phone.findOne({ dnid: req?.query?.To});
+    // contactFrom = await Contact.findOne({ dnid: req?.query?.From});
+    // contactTo = await Contact.findOne({ dnid: req?.query?.To});
+    contactFrom = await Contact.findOneAndUpdate(
+      { dnid: req?.query?.From },
+      { dnid: req?.query?.From },
+      { upsert: true },
+      function(err, doc) {
+        if (err) console.error("Could not upsert Contact");
+      }
+    ).clone();
+    contactTo = await Contact.findOneAndUpdate(
+      { dnid: req.query.To },
+      { dnid: req.query.To },
+      { upsert: true },
+      function(err, doc) {
+        if (err) console.error("Could not upsert Contact");
+      }
+    ).clone();
 
-    if(contactFrom){
-      req.query.ContactIdFrom = contactFrom.id;
-      req.query.FirstNameFrom = contactFrom.firstName;
-      req.query.LastNameFrom = contactFrom.lastName;
+    const upsertInteraction = async (type) => {
+      const interaction = await Interaction.findOneAndUpdate(
+        { callSid: req?.query?.CallSid },
+        { from:contactFrom, to: contactTo, type: "voice", [type]: req.query },
+        { upsert: true },
+        function(err, doc) {
+          if (err) console.error("Could not upsert Interaction", req?.query?.CallSid, req.query);
+        }).clone();
+      return interaction;
     }
-    if(contactTo){
-      req.query.ContactIdTo = contactTo.id;
-      req.query.FirstNameTo = contactTo.firstName;
-      req.query.LastNameTo = contactTo.lastName;
+
+    switch(req?.query?.CallStatus){
+      case "initiated":
+        interaction = await upsertInteraction("initiated");
+      break;
+      case "ringing":
+        interaction = await upsertInteraction("ringing");
+      break;
+      case "in-progress":
+        interaction = await upsertInteraction("answered");
+      break;
+      case "completed":
+        interaction = await upsertInteraction("completed");
+      break;
+      default:
+        console.warn("Nothing to update interaction");
     }
+    req.query.Interaction = interaction;
+
     handleEvents(req,res)
   } catch (err) {
-    console.error("Unsuccessful request: ", err);
+    console.error(err, `<- Event_${req?.query?.CallSid})_UnsuccessfulRequest`);
     res.status(500).json({ message: err.message });
   }
-
 });
 
 //functions
@@ -77,7 +114,7 @@ function handleEvents(req,res){
   const io = req.app.get('socketio');
   io.emit("events", req?.query);
 
-  console.log(`Events: (${req?.query?.CallSid}):`, req?.query?.To, req?.query?.CallStatus, req?.query);
+  console.log(JSON.stringify(req?.query), `<- Event_${req?.query?.CallSid}`);
   res.setHeader('content-type', 'text/plain');
   res.status(200).send(`${req?.query?.CallStatus}`);
 }
@@ -97,6 +134,7 @@ function outboundRequest(req,res){
 
 function handleOutbound(client,url,req,res)
 {
+  console.log("The base:", ngrokBase);
   client.calls
   .create({
     statusCallback: url,
@@ -126,7 +164,7 @@ function handleOutbound(client,url,req,res)
 }
 
 function handleInbound(req, res){
-  const twiml = `<Response><Dial callerId="${req?.query?.From}"><Number statusCallbackEvent="initiated ringing answered completed" statusCallback="${ngrokBase}/events" statusCallbackMethod="GET">+61450503662</Number></Dial><Say voice="alice">Goodbye</Say></Response>`;
+  const twiml = `<Response><Dial callerId="${req?.query?.From}"><Number statusCallbackEvent="initiated ringing answered completed" statusCallback="${ngrokBase}/phone/events" statusCallbackMethod="GET">+61450503662</Number></Dial><Say voice="alice">Goodbye</Say></Response>`;
   res.type('text/xml');
   res.send(twiml);
 }

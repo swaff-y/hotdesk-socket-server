@@ -3,7 +3,7 @@
 const mongoose = require('mongoose');
 
 //we will need a schema
-const phoneSchema = new mongoose.Schema({
+const contactSchema = new mongoose.Schema({
   dnid: {
     type: Number,
     required: true,
@@ -16,8 +16,12 @@ const phoneSchema = new mongoose.Schema({
   lastName:{
     type: String,
     required: false
+  },
+  email:{
+    type: String,
+    required: false
   }
 })
 
 //this model allows us to interact with the database
-module.exports = mongoose.model('Phone', phoneSchema);
+module.exports = mongoose.model('Contact', contactSchema);
