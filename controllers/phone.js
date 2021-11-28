@@ -21,11 +21,6 @@ router.get('/outbound', async (req,res) => {
   }
 
   try{
-    // let contact = await Contact.findOne({ dnid: req.query.PhoneNumber});
-    // if(!contact){
-    //   const contactDNID = { dnid: req.query.PhoneNumber };
-    //   contact = await Contact.create(contactDNID);
-    // }
     outboundRequest(req,res);
   } catch(err) {
     console.error("Unsuccessful request: ", err);
@@ -54,8 +49,6 @@ router.get('/events', async (req, res) => {
   let contactTo;
   let interaction;
   try {
-    // contactFrom = await Contact.findOne({ dnid: req?.query?.From});
-    // contactTo = await Contact.findOne({ dnid: req?.query?.To});
     contactFrom = await Contact.findOneAndUpdate(
       { dnid: req?.query?.From },
       { dnid: req?.query?.From },
@@ -121,9 +114,9 @@ function handleEvents(req,res){
 
 function outboundRequest(req,res){
   if(simulation){
-    console.log("Outbound: ",req?.query?.CallSid);
+    console.log("Outbound: ",req?.query?.PhoneNumber);
     const io = req.app.get('socketio');
-    io.emit("established", {CallType:"outbound", CallSid: req?.query?.CallSid, TimeStamp: Date.now()});
+    io.emit("established", {CallType:"outbound", PhoneNumber: req?.query?.PhoneNumber, TimeStamp: Date.now()});
 
     simulationDurations(req, res, "outbound");
   } else {
