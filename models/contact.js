@@ -20,6 +20,10 @@ const contactSchema = new mongoose.Schema({
   email:{
     type: String,
     required: false
+  },
+  company:{
+    type: String,
+    required: false
   }
 })
 
