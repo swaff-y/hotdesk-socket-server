@@ -29,11 +29,11 @@ router.get('/outbound', async (req,res) => {
 });
 
 //inbound
-//curl http://localhost:3003/phone/inbound?CallSid=ojIckSD2jqNzOqIrAGzL
+//curl http://localhost:3003/phone/inbound?From=0450493936
 router.get('/inbound', (req, res) => {
   console.log("Inbound: ",req?.query?.CallSid);
   const io = req.app.get('socketio');
-  io.emit("established", {CallType:"inbound", CallSid: req?.query?.CallSid, TimeStamp: Date.now()});
+  io.emit("established", {CallType:"inbound", PhoneNumber: req?.query?.From, TimeStamp: Date.now()});
 
   if(simulation){
     simulationDurations(req, res, "inbound");

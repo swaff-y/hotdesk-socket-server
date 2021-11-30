@@ -78,13 +78,23 @@ router.delete("/:id", getContact, async (req,res) => {
 //middleware function to get contact
 async function getContact(req, res, next){
   let contact;
+  console.log("req:", req.params.id);
   try{
-    contact = await Contact.findById(req.params.id);
-    if(contact === null){
-      //404 status means you could not find something
-      return res.status(404).json({ message: "Could not find contact with id " + req.params.id})
+    if(req.params.id.length > 12){
+      contact = await Contact.findById(req.params.id);
+      if(contact === null){
+        return res.status(404).json({ message: "Could not find contact with id " + req.params.id})
+      }
+    } else {
+      contact = await Contact.findOne({dnid:req.params.id});
+      if(contact === null){
+        //404 status means you could not find something
+        return res.status(404).json({ message: "Could not find contact with id " + req.params.id})
+      }
     }
+
   } catch(err) {
+    console.log("getContact",err.message);
     return res.status(500).json({ message: err.message });
   }
 

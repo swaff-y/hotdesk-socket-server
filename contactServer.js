@@ -18,5 +18,10 @@ app.listen(port, () => {
 });
 app.use(express.json());
 app.use(urlencoded({ extended: false }));
+//CORS
+const cors = require('cors');
+app.use(cors({
+    origin: '*'
+}));
 //controllers
 app.use("/contact", require("./controllers/contacts"));
