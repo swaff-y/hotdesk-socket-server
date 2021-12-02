@@ -8,6 +8,14 @@ const interactionSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  direction:{
+    type: Object,
+    required: false
+  },
+  timeStamp:{
+    type: Object,
+    required: false
+  },
   from:{
     type: Object,
     required: false

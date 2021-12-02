@@ -10,17 +10,21 @@ const client = require('twilio')(accountSid, authToken);
 const fetch = require('node-fetch');
 const Contact = require("../models/contact");
 const Interaction = require("../models/interaction");
+const bcrypt = require("bcrypt");
 
 module.exports = router;
 
+let SID_SIMS = "";
+
 //outbound
-//curl http://localhost:3003/phone/outbound?PhoneNumber=61450503662
+//curl http://localhost:3003/phone/outbound?PhoneNumber=61450503662&UserId=
 router.get('/outbound', async (req,res) => {
   if(!req?.query?.PhoneNumber){
     return res.status(400).json({message: "Please include phone number"})
   }
 
   try{
+    SID_SIMS = await bcrypt.hash(String(new Date()),10);
     outboundRequest(req,res);
   } catch(err) {
     console.error("Unsuccessful request: ", err);
@@ -29,17 +33,24 @@ router.get('/outbound', async (req,res) => {
 });
 
 //inbound
-//curl http://localhost:3003/phone/inbound?From=0450493936
-router.get('/inbound', (req, res) => {
+//curl http://localhost:3003/phone/inbound?From=61450493936
+router.get('/inbound', async (req, res) => {
   console.log("Inbound: ",req?.query?.CallSid);
   const io = req.app.get('socketio');
   io.emit("established", {CallType:"inbound", PhoneNumber: req?.query?.From, TimeStamp: Date.now()});
 
-  if(simulation){
-    simulationDurations(req, res, "inbound");
-  }else{
-    handleInbound(req, res);
+  try {
+    SID_SIMS = await bcrypt.hash(String(new Date()),10);
+    if(simulation){
+      simulationDurations(req, res, "inbound");
+    }else{
+      handleInbound(req, res);
+    }
+  } catch(err) {
+    console.error("Unsuccessful request: ", err);
+    res.status(500).json({ message: err.message });
   }
+
 });
 
 //events
@@ -67,9 +78,36 @@ router.get('/events', async (req, res) => {
     ).clone();
 
     const upsertInteraction = async (type) => {
+      let obj = {};
+      if((req?.query?.CallStatus === "initiated") && req?.query?.CalledVia){
+        obj = {
+          direction: "inbound",
+          timeStamp: Date.now(),
+          from:contactFrom,
+          to: contactTo,
+          type: "voice",
+          [type]: req.query
+        };
+      } else if((req?.query?.CallStatus === "initiated") && !req?.query?.CalledVia ) {
+        obj = {
+          direction: "outbound",
+          timeStamp: Date.now(),
+          from:contactFrom,
+          to: contactTo,
+          type: "voice",
+          [type]: req.query
+        };
+      } else {
+        obj = {
+          from:contactFrom,
+          to: contactTo,
+          type: "voice",
+          [type]: req.query
+        };
+      }
       const interaction = await Interaction.findOneAndUpdate(
         { callSid: req?.query?.CallSid },
-        { from:contactFrom, to: contactTo, type: "voice", [type]: req.query },
+        obj,
         { upsert: true },
         function(err, doc) {
           if (err) console.error("Could not upsert Interaction", req?.query?.CallSid, req.query);
@@ -114,7 +152,7 @@ function handleEvents(req,res){
 
 function outboundRequest(req,res){
   if(simulation){
-    console.log("Outbound: ",req?.query?.PhoneNumber);
+    console.log("Outbound: ",req?.query?.PhoneNumber, req?.query?.UserId);
     const io = req.app.get('socketio');
     io.emit("established", {CallType:"outbound", PhoneNumber: req?.query?.PhoneNumber, TimeStamp: Date.now()});
 
@@ -135,8 +173,8 @@ function handleOutbound(client,url,req,res)
     statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
     twiml: `<Response><Dial callerId="+61450493936"><Number statusCallbackEvent="initiated ringing answered completed" statusCallback="${ngrokBase}/phone/events" statusCallbackMethod="GET">+61450503662</Number></Dial><Say voice="alice">Goodbye</Say></Response>`,
     // twiml: twiml,
-    to: '+61450493936',
-    from: '+12673994326'
+    to: '+61450493936', //from query *add plus*
+    from: '+19595006980' //test this if changed - from userProfile
   })
   .then(call => {
     console.log("Outbound: ", call.sid);
@@ -157,7 +195,7 @@ function handleOutbound(client,url,req,res)
 }
 
 function handleInbound(req, res){
-  const twiml = `<Response><Dial callerId="${req?.query?.From}"><Number statusCallbackEvent="initiated ringing answered completed" statusCallback="${ngrokBase}/phone/events" statusCallbackMethod="GET">+61450503662</Number></Dial><Say voice="alice">Goodbye</Say></Response>`;
+  const twiml = `<Response><Dial callerId="${req?.query?.From}"><Number statusCallbackEvent="initiated ringing answered completed" statusCallback="${ngrokBase}/phone/events" statusCallbackMethod="GET">+61450503662</Number></Dial><Say voice="alice">Goodbye</Say></Response>`; //number from user profile
   res.type('text/xml');
   res.send(twiml);
 }
@@ -208,6 +246,8 @@ function simulationDurations(req, res, type){
       default:
         eventDuration = eventDuration * 1;
     }
+
+    data.CallSid = SID_SIMS;
 
     const dataArr = Object.keys(data);
     const strArr = [];
