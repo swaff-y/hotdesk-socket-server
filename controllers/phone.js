@@ -25,6 +25,7 @@ router.get('/outbound', async (req,res) => {
 
   try{
     SID_SIMS = await bcrypt.hash(String(new Date()),10);
+    //get user here with await and then pass to outbound request
     outboundRequest(req,res);
   } catch(err) {
     console.error("Unsuccessful request: ", err);
@@ -41,6 +42,7 @@ router.get('/inbound', async (req, res) => {
 
   try {
     SID_SIMS = await bcrypt.hash(String(new Date()),10);
+    //Get User from "From" and pass to handleInbound
     if(simulation){
       simulationDurations(req, res, "inbound");
     }else{
@@ -88,6 +90,7 @@ router.get('/events', async (req, res) => {
           type: "voice",
           [type]: req.query
         };
+        //Get OwnerId from contactTo "routeNumber"
       } else if((req?.query?.CallStatus === "initiated") && !req?.query?.CalledVia ) {
         obj = {
           direction: "outbound",
@@ -97,6 +100,7 @@ router.get('/events', async (req, res) => {
           type: "voice",
           [type]: req.query
         };
+        //Get OwnerId from contactFrom "routeNumber"
       } else {
         obj = {
           from:contactFrom,
@@ -171,9 +175,9 @@ function handleOutbound(client,url,req,res)
     statusCallback: url,
     statusCallbackMethod: 'GET',
     statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
-    twiml: `<Response><Dial callerId="+61450493936"><Number statusCallbackEvent="initiated ringing answered completed" statusCallback="${ngrokBase}/phone/events" statusCallbackMethod="GET">+61450503662</Number></Dial><Say voice="alice">Goodbye</Say></Response>`,
+    twiml: `<Response><Dial callerId="+61450493936"><Number statusCallbackEvent="initiated ringing answered completed" statusCallback="${ngrokBase}/phone/events" statusCallbackMethod="GET">+61450503662</Number></Dial><Say voice="alice">Goodbye</Say></Response>`, //callerId from userlookup - <number/> from query
     // twiml: twiml,
-    to: '+61450493936', //from query *add plus*
+    to: '+61450493936', //from userlookup *add plus*
     from: '+19595006980' //test this if changed - from userProfile
   })
   .then(call => {
@@ -195,7 +199,7 @@ function handleOutbound(client,url,req,res)
 }
 
 function handleInbound(req, res){
-  const twiml = `<Response><Dial callerId="${req?.query?.From}"><Number statusCallbackEvent="initiated ringing answered completed" statusCallback="${ngrokBase}/phone/events" statusCallbackMethod="GET">+61450503662</Number></Dial><Say voice="alice">Goodbye</Say></Response>`; //number from user profile
+  const twiml = `<Response><Dial callerId="${req?.query?.From}"><Number statusCallbackEvent="initiated ringing answered completed" statusCallback="${ngrokBase}/phone/events" statusCallbackMethod="GET">+61450493936</Number></Dial><Say voice="alice">Goodbye</Say></Response>`; //number from user profile
   res.type('text/xml');
   res.send(twiml);
 }

@@ -11,6 +11,14 @@ const userSchema = new mongoose.Schema({
   password:{
     type: String,
     required: true
+  },
+  dn:{
+    type: String,
+    required: true
+  },
+  routeNumber:{
+    type: String,
+    required: true
   }
 })
 
