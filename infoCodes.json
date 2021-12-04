@@ -46,6 +46,11 @@
       "code" : "Err-phone005",
       "description" : "Handle outbound failed",
       "file" : "phone.js",
+    },
+    {
+      "code" : "Err-phone006",
+      "description" : "Fetch events failed",
+      "file" : "phone.js",
     }
   ]
 }

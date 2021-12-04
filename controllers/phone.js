@@ -388,6 +388,13 @@ function simulationDurations(req, res, type){
         });
       })
       .catch(err=>{
+        //contextCode: Err-phone006
+        logger.error("Fetch events failed", err,
+        {
+          contextCode: "Err-phone006",
+          query: req?.query
+        });
+        console.error(err, "Err-phone006");
       })
     },eventDuration);
   }
