@@ -1,6 +1,10 @@
 require('dotenv').config();
 const express = require('express');
 const router = express.Router();
+const logger = require("./../logger").Logger;
+// logger.info("Test Message");
+// logger.debug("Test Message");
+// logger.error("Test Message");
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const simulation = process.env.SIMULATION;
@@ -10,6 +14,7 @@ const client = require('twilio')(accountSid, authToken);
 const fetch = require('node-fetch');
 const Contact = require("../models/contact");
 const Interaction = require("../models/interaction");
+const User = require("../models/users");
 const bcrypt = require("bcrypt");
 
 module.exports = router;
@@ -17,40 +22,76 @@ module.exports = router;
 let SID_SIMS = "";
 
 //outbound
-//curl http://localhost:3003/phone/outbound?PhoneNumber=61450503662&UserId=
+//curl -X GET "http://localhost:3003/phone/outbound?PhoneNumber=61450503662&UserId=6173e1c42a990e18eccafbdb"
 router.get('/outbound', async (req,res) => {
   if(!req?.query?.PhoneNumber){
+    //contextCode: Err-phone001
+    logger.error("Phone Number not included", "Please include phone number",
+    {
+      contextCode: "Err-phone001",
+      query: req?.query
+    });
     return res.status(400).json({message: "Please include phone number"})
   }
 
   try{
     SID_SIMS = await bcrypt.hash(String(new Date()),10);
     //get user here with await and then pass to outbound request
-    outboundRequest(req,res);
+    const owner = await User.findById(req?.query?.UserId,(err)=>{
+      if(err) throw new Error(err);
+    }).clone();
+
+    if(owner){
+      outboundRequest(req,res,owner);
+    }else{
+      throw new Error('Could not assign an owner')
+    }
+
   } catch(err) {
+    //contextCode: Err-phone002
+    logger.error("Outbound phone api failed", err,
+    {
+      contextCode: "Err-phone002",
+      query: req?.query
+    });
     console.error("Unsuccessful request: ", err);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ error: true, message: err.message });
   }
 });
 
 //inbound
-//curl http://localhost:3003/phone/inbound?From=61450493936
+//curl -X GET "http://localhost:3003/phone/inbound?From=61450503662&ForwardedFrom=12673994326"
 router.get('/inbound', async (req, res) => {
-  console.log("Inbound: ",req?.query?.CallSid);
+  console.log("Inbound: ",req?.query);
   const io = req.app.get('socketio');
-  io.emit("established", {CallType:"inbound", PhoneNumber: req?.query?.From, TimeStamp: Date.now()});
+  io.emit("established", {CallType:"inbound", PhoneNumber: req?.query?.From?.trim(), TimeStamp: Date.now()});
 
   try {
     SID_SIMS = await bcrypt.hash(String(new Date()),10);
     //Get User from "From" and pass to handleInbound
-    if(simulation){
-      simulationDurations(req, res, "inbound");
-    }else{
-      handleInbound(req, res);
+    const owner = await User.findOne({dn: req?.query?.ForwardedFrom?.trim()},(err)=>{
+      if(err) throw new Error(err);
+    }).clone();
+
+    if(owner){
+      if(simulation){
+        simulationDurations(req, res, "inbound", );
+      }else{
+        handleInbound(req, res, owner);
+      }
+    } else {
+      throw new Error("Could not assign owner");
     }
+
   } catch(err) {
+    //contextCode: Err=phone003
+    logger.error("Inbound phone api failed", err,
+    {
+      contextCode: "Err-phone003",
+      query: req?.query
+    });
     console.error("Unsuccessful request: ", err);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ error: true, message: err.message });
   }
 
 });
@@ -63,44 +104,72 @@ router.get('/events', async (req, res) => {
   let interaction;
   try {
     contactFrom = await Contact.findOneAndUpdate(
-      { dnid: req?.query?.From },
-      { dnid: req?.query?.From },
+      { dnid: req?.query?.From?.trim() },
+      { dnid: req?.query?.From?.trim() },
       { upsert: true },
       function(err, doc) {
-        if (err) console.error("Could not upsert Contact");
+        if (err){
+          console.error("Could not upsert Contact", err);
+          throw new Error("Could not upsert Contact");
+        }
       }
     ).clone();
     contactTo = await Contact.findOneAndUpdate(
-      { dnid: req.query.To },
-      { dnid: req.query.To },
+      { dnid: req?.query?.To?.trim() },
+      { dnid: req?.query?.To?.trim() },
       { upsert: true },
       function(err, doc) {
-        if (err) console.error("Could not upsert Contact");
+        if (err){
+          console.error("Could not upsert Contact", err);
+          throw new Error("Could not upsert Contact");
+        }
       }
     ).clone();
 
     const upsertInteraction = async (type) => {
       let obj = {};
       if((req?.query?.CallStatus === "initiated") && req?.query?.CalledVia){
-        obj = {
-          direction: "inbound",
-          timeStamp: Date.now(),
-          from:contactFrom,
-          to: contactTo,
-          type: "voice",
-          [type]: req.query
-        };
         //Get OwnerId from contactTo "routeNumber"
+        const owner = await User.findOne({dn: req?.query?.ForwardedFrom?.trim()},(err)=>{
+          if(err) throw new Error(err);
+        }).clone().catch((err)=>{ throw new Error(err) });
+
+        if(owner){
+          obj = {
+            direction: "inbound",
+            timeStamp: Date.now(),
+            owner: owner,
+            from:contactFrom,
+            to: contactTo,
+            type: "voice",
+            [type]: req.query
+          };
+        } else {
+          throw new Error("Could not assign owner " + req?.query?.ForwardedFrom?.trim());
+        }
+
       } else if((req?.query?.CallStatus === "initiated") && !req?.query?.CalledVia ) {
-        obj = {
-          direction: "outbound",
-          timeStamp: Date.now(),
-          from:contactFrom,
-          to: contactTo,
-          type: "voice",
-          [type]: req.query
-        };
         //Get OwnerId from contactFrom "routeNumber"
+        if(req.query.Direction === "outbound-api"){
+          const owner = await User.findOne({dn: req?.query?.From?.trim()},(err)=>{
+            console.error(err);
+            if(err) throw new Error(err + " TUR");
+          }).clone();
+
+          if(owner){
+            obj.owner = owner
+          } else {
+            throw new Error("Could not assign owner")
+          }
+        }
+
+        obj.direction = "outbound";
+        obj.timeStamp = Date.now();
+        obj.from = contactFrom;
+        obj.to = contactTo;
+        obj.type = "voice";
+        obj[type] = req.query;
+
       } else {
         obj = {
           from:contactFrom,
@@ -109,12 +178,16 @@ router.get('/events', async (req, res) => {
           [type]: req.query
         };
       }
+
       const interaction = await Interaction.findOneAndUpdate(
         { callSid: req?.query?.CallSid },
         obj,
         { upsert: true },
         function(err, doc) {
-          if (err) console.error("Could not upsert Interaction", req?.query?.CallSid, req.query);
+          if (err){
+            console.error("Could not upsert Interaction", req?.query?.CallSid, req.query);
+            throw new Error("Could not upsert Interaction");
+          }
         }).clone();
       return interaction;
     }
@@ -139,8 +212,14 @@ router.get('/events', async (req, res) => {
 
     handleEvents(req,res)
   } catch (err) {
+    //contextCode: Err-phone004
+    logger.error("Events phone api failed", err,
+    {
+      contextCode: "Err-phone004",
+      query: req?.query
+    });
     console.error(err, `<- Event_${req?.query?.CallSid})_UnsuccessfulRequest`);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ error: true, message: err.message });
   }
 });
 
@@ -151,23 +230,31 @@ function handleEvents(req,res){
 
   console.log(JSON.stringify(req?.query), `<- Event_${req?.query?.CallSid}`);
   res.setHeader('content-type', 'text/plain');
-  res.status(200).send(`${req?.query?.CallStatus}`);
+
+  //contextCode: Suc-phone001
+  logger.info("Events phone api sent",
+  {
+    contextCode: "Suc-phone001",
+    query: req?.query
+  });
+  res.status(200).json({ message: "Success", callStatus: `${req?.query?.CallStatus}`});
 }
 
-function outboundRequest(req,res){
+function outboundRequest(req,res,owner){
   if(simulation){
-    console.log("Outbound: ",req?.query?.PhoneNumber, req?.query?.UserId);
+    console.log("Outbound (Simulation): ",req?.query?.PhoneNumber, req?.query?.UserId);
     const io = req.app.get('socketio');
     io.emit("established", {CallType:"outbound", PhoneNumber: req?.query?.PhoneNumber, TimeStamp: Date.now()});
 
     simulationDurations(req, res, "outbound");
   } else {
+    console.log("Outbound: ",req?.query?.PhoneNumber, req?.query?.UserId);
     const url = `${ngrokBase}/phone/events`;
-    handleOutbound(client,url,req,res);
+    handleOutbound(client,url,req,res,owner);
   }
 }
 
-function handleOutbound(client,url,req,res)
+function handleOutbound(client,url,req,res,owner)
 {
   console.log("The base:", ngrokBase);
   client.calls
@@ -175,10 +262,10 @@ function handleOutbound(client,url,req,res)
     statusCallback: url,
     statusCallbackMethod: 'GET',
     statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
-    twiml: `<Response><Dial callerId="+61450493936"><Number statusCallbackEvent="initiated ringing answered completed" statusCallback="${ngrokBase}/phone/events" statusCallbackMethod="GET">+61450503662</Number></Dial><Say voice="alice">Goodbye</Say></Response>`, //callerId from userlookup - <number/> from query
+    twiml: `<Response><Dial callerId="+${owner.routeNumber}"><Number statusCallbackEvent="initiated ringing answered completed" statusCallback="${ngrokBase}/phone/events" statusCallbackMethod="GET">+${req.query.PhoneNumber}</Number></Dial><Say voice="alice">Goodbye</Say></Response>`, //callerId from userlookup - <number/> from query
     // twiml: twiml,
-    to: '+61450493936', //from userlookup *add plus*
-    from: '+19595006980' //test this if changed - from userProfile
+    to: `+${owner.routeNumber}`, //from userlookup *add plus*
+    from: `+${owner.dn}` //test this if changed - from userProfile
   })
   .then(call => {
     console.log("Outbound: ", call.sid);
@@ -186,20 +273,42 @@ function handleOutbound(client,url,req,res)
     const io = req.app.get('socketio');
     io.emit("established", {CallType:"outbound", CallSid: call.sid, TimeStamp: Date.now()});
 
+    //contextCode: Suc-phone002
+    logger.info("Handle outbound success",
+    {
+      contextCode: "Suc-phone002",
+      query: req?.query
+    });
     res.status(200).json({
       message: "Success"
     });
   })
   .catch(error => {
-    console.error(error);
+    //contextCode: Err-phone005
+    logger.error("Handle outbound failed", err,
+    {
+      contextCode: "Err-phone005",
+      query: req?.query
+    });
+
+    console.error(error, "DrN-23Osfe");
     res.status(500).json({
-      message: "Error"
+      error: true,
+      message: error
     });
   });
 }
 
-function handleInbound(req, res){
-  const twiml = `<Response><Dial callerId="${req?.query?.From}"><Number statusCallbackEvent="initiated ringing answered completed" statusCallback="${ngrokBase}/phone/events" statusCallbackMethod="GET">+61450493936</Number></Dial><Say voice="alice">Goodbye</Say></Response>`; //number from user profile
+function handleInbound(req, res, owner){
+  const twiml = `<Response><Dial callerId="${req?.query?.From?.trim()}"><Number statusCallbackEvent="initiated ringing answered completed" statusCallback="${ngrokBase}/phone/events" statusCallbackMethod="GET">+${owner.routeNumber}</Number></Dial><Say voice="alice">Goodbye</Say></Response>`; //number from user profile
+
+  //contextCode: Suc-phone004
+  logger.info("Handle inbound success",
+  {
+    contextCode: "Suc-phone004",
+    query: req?.query
+  });
+
   res.type('text/xml');
   res.send(twiml);
 }
@@ -268,7 +377,15 @@ function simulationDurations(req, res, type){
       .then(result => {
       })
       .then(result=>{
-        res.send("Success");
+        //contextCode: Suc-phone003
+        logger.info("Handle outbound / inbound success (simulation)",
+        {
+          contextCode: "Suc-phone003",
+          query: req?.query
+        });
+        res.status(200).json({
+          message: "Success"
+        });
       })
       .catch(err=>{
       })

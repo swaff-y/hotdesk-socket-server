@@ -1,0 +1,51 @@
+{
+  "success":[
+    {
+      "code" : "Suc-phone001",
+      "description" : "Events phone api sent",
+      "file" : "phone.js",
+    },
+    {
+      "code" : "Suc-phone002",
+      "description" : "Handle outbound success",
+      "file" : "phone.js",
+    },
+    {
+      "code" : "Suc-phone003",
+      "description" : "Handle outbound / inbound success (simulation)",
+      "file" : "phone.js",
+    },
+    {
+      "code" : "Suc-phone004",
+      "description" : "Handle inbound success",
+      "file" : "phone.js",
+    }
+  ],
+  "Error":[
+    {
+      "code" : "Err-phone001",
+      "description" : "Phone Number not included - outbound api",
+      "file" : "phone.js",
+    },
+    {
+      "code" : "Err-phone002",
+      "description" : "Outbound phone api failed",
+      "file" : "phone.js",
+    },
+    {
+      "code" : "Err-phone003",
+      "description" : "Inbound phone api failed",
+      "file" : "phone.js",
+    },
+    {
+      "code" : "Err-phone004",
+      "description" : "Events phone api failed",
+      "file" : "phone.js",
+    },
+    {
+      "code" : "Err-phone005",
+      "description" : "Handle outbound failed",
+      "file" : "phone.js",
+    }
+  ]
+}

@@ -9,12 +9,16 @@ const interactionSchema = new mongoose.Schema({
     unique: true
   },
   direction:{
+    type: String,
+    required: true
+  },
+  owner:{
     type: Object,
-    required: false
+    required: true
   },
   timeStamp:{
-    type: Object,
-    required: false
+    type: Number,
+    required: true
   },
   from:{
     type: Object,
@@ -26,7 +30,7 @@ const interactionSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    required: false
+    required: true
   },
   initiated:{
     type: Object,
