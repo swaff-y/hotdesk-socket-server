@@ -54,7 +54,6 @@ router.get('/outbound', async (req,res) => {
       contextCode: "Err-phone002",
       query: req?.query
     });
-    console.error("Unsuccessful request: ", err);
     res.status(500).json({ error: true, message: err.message });
   }
 });
@@ -62,7 +61,8 @@ router.get('/outbound', async (req,res) => {
 //inbound
 //curl -X GET "http://localhost:3003/phone/inbound?From=61450503662&ForwardedFrom=12673994326"
 router.get('/inbound', async (req, res) => {
-  console.log("Inbound: ",req?.query);
+  logger.debug("Inbound: ", req?.query);
+
   const io = req.app.get('socketio');
   io.emit("established", {CallType:"inbound", PhoneNumber: req?.query?.From?.trim(), TimeStamp: Date.now()});
 
@@ -90,7 +90,6 @@ router.get('/inbound', async (req, res) => {
       contextCode: "Err-phone003",
       query: req?.query
     });
-    console.error("Unsuccessful request: ", err);
     res.status(500).json({ error: true, message: err.message });
   }
 
@@ -98,7 +97,8 @@ router.get('/inbound', async (req, res) => {
 
 //events
 router.get('/events', async (req, res) => {
-  console.log(`Event_${req?.query.CallSid} ->`)
+  logger.debug(`Event_${req?.query.CallSid} ->`);
+
   let contactFrom;
   let contactTo;
   let interaction;
@@ -109,7 +109,11 @@ router.get('/events', async (req, res) => {
       { upsert: true },
       function(err, doc) {
         if (err){
-          console.error("Could not upsert Contact", err);
+          logger.error("Could not upsert Contact", err,
+          {
+            contextCode: "Err-phone007",
+            query: req?.query
+          });
           throw new Error("Could not upsert Contact");
         }
       }
@@ -120,7 +124,11 @@ router.get('/events', async (req, res) => {
       { upsert: true },
       function(err, doc) {
         if (err){
-          console.error("Could not upsert Contact", err);
+          logger.error("Could not upsert Contact", err,
+          {
+            contextCode: "Err-phone008",
+            query: req?.query
+          });
           throw new Error("Could not upsert Contact");
         }
       }
@@ -131,8 +139,15 @@ router.get('/events', async (req, res) => {
       if((req?.query?.CallStatus === "initiated") && req?.query?.CalledVia){
         //Get OwnerId from contactTo "routeNumber"
         const owner = await User.findOne({dn: req?.query?.ForwardedFrom?.trim()},(err)=>{
-          if(err) throw new Error(err);
-        }).clone().catch((err)=>{ throw new Error(err) });
+          if(err) {
+            logger.error("Could not get owner", err,
+            {
+              contextCode: "Err-phone009",
+              query: req?.query
+            });
+            throw new Error(err);
+          }
+        }).clone()
 
         if(owner){
           obj = {
@@ -145,6 +160,11 @@ router.get('/events', async (req, res) => {
             [type]: req.query
           };
         } else {
+          logger.error("Could not assign owner " + req?.query?.ForwardedFrom?.trim(), null,
+          {
+            contextCode: "Err-phone010",
+            query: req?.query
+          });
           throw new Error("Could not assign owner " + req?.query?.ForwardedFrom?.trim());
         }
 
@@ -152,13 +172,24 @@ router.get('/events', async (req, res) => {
         //Get OwnerId from contactFrom "routeNumber"
         if(req.query.Direction === "outbound-api"){
           const owner = await User.findOne({dn: req?.query?.From?.trim()},(err)=>{
-            console.error(err);
-            if(err) throw new Error(err + " TUR");
+            if(err){
+              logger.error("Could not get owner", err,
+              {
+                contextCode: "Err-phone011",
+                query: req?.query
+              });
+              throw new Error(err);
+            }
           }).clone();
 
           if(owner){
             obj.owner = owner
           } else {
+            logger.error("Could not get owner", null,
+            {
+              contextCode: "Err-phone012",
+              query: req?.query
+            });
             throw new Error("Could not assign owner")
           }
         }
@@ -184,8 +215,12 @@ router.get('/events', async (req, res) => {
         obj,
         { upsert: true },
         function(err, doc) {
-          if (err){
-            console.error("Could not upsert Interaction", req?.query?.CallSid, req.query);
+          if (err) {
+            logger.error("Could not upsert Interaction", err,
+            {
+              contextCode: "Err-phone013",
+              query: req?.query
+            });
             throw new Error("Could not upsert Interaction");
           }
         }).clone();
@@ -218,7 +253,6 @@ router.get('/events', async (req, res) => {
       contextCode: "Err-phone004",
       query: req?.query
     });
-    console.error(err, `<- Event_${req?.query?.CallSid})_UnsuccessfulRequest`);
     res.status(500).json({ error: true, message: err.message });
   }
 });
@@ -228,8 +262,8 @@ function handleEvents(req,res){
   const io = req.app.get('socketio');
   io.emit("events", req?.query);
 
-  console.log(JSON.stringify(req?.query), `<- Event_${req?.query?.CallSid}`);
-  res.setHeader('content-type', 'text/plain');
+  logger.debug(`${JSON.stringify(req?.query)}<- Event_${req?.query?.CallSid}`);
+  // res.setHeader('content-type', 'text/plain');
 
   //contextCode: Suc-phone001
   logger.info("Events phone api sent",
@@ -242,13 +276,15 @@ function handleEvents(req,res){
 
 function outboundRequest(req,res,owner){
   if(simulation){
-    console.log("Outbound (Simulation): ",req?.query?.PhoneNumber, req?.query?.UserId);
+    logger.debug(`Outbound (Simulation): ${req?.query?.PhoneNumber} ${req?.query?.UserId}`);
+
     const io = req.app.get('socketio');
     io.emit("established", {CallType:"outbound", PhoneNumber: req?.query?.PhoneNumber, TimeStamp: Date.now()});
 
     simulationDurations(req, res, "outbound");
   } else {
-    console.log("Outbound: ",req?.query?.PhoneNumber, req?.query?.UserId);
+    logger.debug(`Outbound: ${req?.query?.PhoneNumber} ${req?.query?.UserId}`);
+
     const url = `${ngrokBase}/phone/events`;
     handleOutbound(client,url,req,res,owner);
   }
@@ -256,7 +292,8 @@ function outboundRequest(req,res,owner){
 
 function handleOutbound(client,url,req,res,owner)
 {
-  console.log("The base:", ngrokBase);
+  logger.debug(`The base: ${ngrokBase}`);
+
   client.calls
   .create({
     statusCallback: url,
@@ -268,7 +305,7 @@ function handleOutbound(client,url,req,res,owner)
     from: `+${owner.dn}` //test this if changed - from userProfile
   })
   .then(call => {
-    console.log("Outbound: ", call.sid);
+    logger.debug(`Outbound: ${call.sid}`);
 
     const io = req.app.get('socketio');
     io.emit("established", {CallType:"outbound", CallSid: call.sid, TimeStamp: Date.now()});
@@ -291,7 +328,6 @@ function handleOutbound(client,url,req,res,owner)
       query: req?.query
     });
 
-    console.error(error, "DrN-23Osfe");
     res.status(500).json({
       error: true,
       message: error
@@ -374,8 +410,8 @@ function simulationDurations(req, res, type){
 
     setTimeout(()=>{
       fetch(`http://localhost:3003/phone/events?${str}`)
-      .then(result => {
-      })
+      // .then(result => {
+      // })
       .then(result=>{
         //contextCode: Suc-phone003
         logger.info("Handle outbound / inbound success (simulation)",
@@ -389,12 +425,11 @@ function simulationDurations(req, res, type){
       })
       .catch(err=>{
         //contextCode: Err-phone006
-        logger.error("Fetch events failed", err,
+        logger.error("Fetch events failed: " + str, err,
         {
           contextCode: "Err-phone006",
           query: req?.query
         });
-        console.error(err, "Err-phone006");
       })
     },eventDuration);
   }

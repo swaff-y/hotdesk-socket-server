@@ -4,6 +4,7 @@ const router = express.Router();
 const User = require("../models/users");
 const jwt = require("./jwt");
 const getUser = require("./getUser");
+const logger = require("./../logger").Logger;
 
 //curl -X POST -H "Content-Type: application/json" -d '{"email":"kyle@swaff.id.au", "password":"xxx"}' http://localhost:3002/login/
 router.post('/', async (req,res)=>{
@@ -14,15 +15,25 @@ router.post('/', async (req,res)=>{
   //take payload and seralize
   if(user)
     if( await bcrypt.compare(req.body.password, user.password) ) {
-      console.log("Successful request: [token sent]");
-      res.json({ accessToken: jwt.generateToken(user) });
+
+      logger.info("User Login - Success",
+      {
+        contextCode: "Suc-user001",
+        query: req?.query,
+        result: user
+      });
+
+      res.json({ accessToken: jwt.generateToken(user), user: user.id });
     }else{
-      console.error("Unsuccessful request: Passwords do not match");
-      res.status(401).json({ message: "Passwords do not match"})
+      throw new Error("Unsuccessful request: Passwords do not match")
     }
   else {
-    console.error("Unsuccessful request: User not found");
-    res.status(404).json({ message: "User not found"})
+    logger.error("Unsuccessful request:", err,
+    {
+      contextCode: "Err-login001",
+      query: req?.query
+    });
+    res.status(404).json({ message: "Unsuccessful request:" + err})
   }
 })
 

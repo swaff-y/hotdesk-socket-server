@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const router = express.Router();
 const Interaction = require("../models/interaction");
+const logger = require("./../logger").Logger;
 
 module.exports = router;
 
@@ -11,8 +12,38 @@ router.get("/", async (req,res) => {
   try{
     //this will get all the different interactions
     const interactions = await Interaction.find();
+    logger.info("Get Interaction - Success",
+    {
+      contextCode: "Suc-interaction002",
+      query: req?.params
+    });
     res.status(200).json(interactions);
   } catch (err) {
+    logger.error("Server Error", err,
+    {
+      contextCode: "Err-interaction004",
+      query: req?.params
+    });
+    res.status(500).json({ message: err.message });
+  }
+});
+//Get All for user
+//curl -X GET http://localhost:3006/interactions/:id
+router.get("/:id", getInteractions, async (req,res) => {
+  try{
+    logger.info("Get Interactions for user - Success",
+    {
+      contextCode: "Suc-interaction001",
+      query: req.params,
+      result: res.interactions
+    });
+    res.status(200).json(res.interactions);
+  } catch (err) {
+    logger.error("Server Error", err,
+    {
+      contextCode: "Err-interaction003",
+      query: req?.params
+    });
     res.status(500).json({ message: err.message });
   }
 });
@@ -91,5 +122,34 @@ async function getInteraction(req, res, next){
 
   //set response to be equal to interaction
   res.interaction = interaction;
+  next();
+};
+//middleware function to get interactions for user
+async function getInteractions(req, res, next){
+  logger.debug("The Request", req?.params);
+  let interactions;
+  try{
+    interactions = await Interaction.find({ "owner._id": req.params.id });
+    if(interactions === null){
+      //404 status means you could not find something
+      logger.error("Could not find interactions for user",
+      "Could not find interactions for user",
+      {
+        contextCode: "Err-interaction001",
+        query: req?.params
+      });
+      return res.status(404).json({ message: "Could not find interactions for user with id " + req.params.id})
+    }
+  } catch(err) {
+    logger.error("Server Error", err,
+    {
+      contextCode: "Err-interaction002",
+      query: req?.params
+    });
+    return res.status(500).json({ message: err.message });
+  }
+
+  //set response to be equal to interaction
+  res.interactions = interactions;
   next();
 };

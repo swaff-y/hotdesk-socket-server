@@ -1,6 +1,8 @@
 //need to require mongoose
 //allow us to interact with the database
 const mongoose = require('mongoose');
+const User = require("../models/users");
+const Contact = require("../models/contact");
 
 const interactionSchema = new mongoose.Schema({
   callSid: {
@@ -12,21 +14,44 @@ const interactionSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  owner:{
-    type: Object,
-    required: true
+  owner: {
+    _id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    },
+    email: String,
+    dn: String,
+    routeNumber: String
   },
+  // owner:{
+  //   type: Object,
+  //   required: true
+  // },
   timeStamp:{
     type: Number,
     required: true
   },
   from:{
-    type: Object,
-    required: false
+    _id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Contact"
+    },
+    firstName: String,
+    lastName: String,
+    dnid: String,
+    email: String,
+    company: String
   },
   to:{
-    type: Object,
-    required: false
+    _id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Contact"
+    },
+    firstName: String,
+    lastName: String,
+    dnid: String,
+    email: String,
+    company: String
   },
   type: {
     type: String,

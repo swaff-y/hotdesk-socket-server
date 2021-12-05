@@ -19,6 +19,16 @@
       "code" : "Suc-phone004",
       "description" : "Handle inbound success",
       "file" : "phone.js",
+    },
+    {
+      "code" : "Suc-interaction001",
+      "description" : "Get Interactions for user - Success",
+      "file" : "interactions.js",
+    },
+    {
+      "code" : "Suc-interaction002",
+      "description" : "Get Interaction - Success",
+      "file" : "interactions.js",
     }
   ],
   "Error":[
@@ -51,6 +61,66 @@
       "code" : "Err-phone006",
       "description" : "Fetch events failed",
       "file" : "phone.js",
+    },
+    {
+      "code" : "Err-phone007",
+      "description" : "Could not upsert Contact",
+      "file" : "phone.js",
+    },
+    {
+      "code" : "Err-phone008",
+      "description" : "Could not upsert Contact",
+      "file" : "phone.js",
+    },
+    {
+      "code" : "Err-phone009",
+      "description" : "Could not get owner",
+      "file" : "phone.js",
+    },
+    {
+      "code" : "Err-phone010",
+      "description" : "Could not assign owner",
+      "file" : "phone.js",
+    },
+    {
+      "code" : "Err-phone011",
+      "description" : "Could not get owner",
+      "file" : "phone.js",
+    },
+    {
+      "code" : "Err-phone012",
+      "description" : "Could not assign owner",
+      "file" : "phone.js",
+    },
+    {
+      "code" : "Err-phone013",
+      "description" : "Could not upsert Interaction",
+      "file" : "phone.js",
+    },
+    {
+      "code" : "Err-interaction001",
+      "description" : "Could not find interactions for user",
+      "file" : "interactions.js",
+    },
+    {
+      "code" : "Err-interaction002",
+      "description" : "Server Error",
+      "file" : "interactions.js",
+    },
+    {
+      "code" : "Err-interaction003",
+      "description" : "Server Error",
+      "file" : "interactions.js",
+    },
+    {
+      "code" : "Err-interaction004",
+      "description" : "Server Error",
+      "file" : "interactions.js",
+    }
+    {
+      "code" : "Err-login001",
+      "description" : "Unsuccessful request",
+      "file" : "login.js",
     }
   ]
 }
