@@ -4,11 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "devStartChat": "nodemon chatServer.js",
-    "devStartLogin": "nodemon loginServer.js",
-    "devStartPhone": "nodemon phoneServer.js",
-    "devStartContact": "nodemon contactServer.js",
-    "devStartInteraction": "nodemon interactionServer.js"
+    "chat": "nodemon chatServer.js",
+    "login": "nodemon loginServer.js",
+    "phone": "nodemon phoneServer.js",
+    "contact": "nodemon contactServer.js",
+    "interaction": "nodemon interactionServer.js"
   },
   "keywords": [],
   "author": "",

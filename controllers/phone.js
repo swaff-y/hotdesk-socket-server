@@ -362,8 +362,10 @@ function simulationDurations(req, res, type){
     let data = {}
     if(type === "inbound"){
       data = require(`../simulations/inbound/${action}.json`);
+      data.Timestamp = new Date();
     } else {
       data = require(`../simulations/outbound/${action}.json`);
+      data.Timestamp = new Date();
     }
 
     let eventDuration = 1000;
