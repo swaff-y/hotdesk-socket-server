@@ -24,7 +24,7 @@ Logger.debug = function(msg, jsonData) {
   const message = new Date().toISOString() + " : " + msg + " -> " + jsonToString(jsonData) + "\n";
   debugStream.write(message);
   if(logging){
-    console.log("[DEBUG]", message);
+    console.log("[DEBUG]", message );
   }
 };
 

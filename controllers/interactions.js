@@ -126,10 +126,38 @@ async function getInteraction(req, res, next){
 };
 //middleware function to get interactions for user
 async function getInteractions(req, res, next){
-  logger.debug("The Request", req?.params);
+  logger.debug("The Request(params)", req?.params);
+  logger.debug("The Request(query)", req?.query);
   let interactions;
   try{
-    interactions = await Interaction.find({ "owner._id": req.params.id });
+    //ToDo: this will show up as a 500 server error. Not correct
+    if(!req?.query?.direction) new Error("Please include a direction to query");
+    if(!req?.query?.limit) new Error("Please include a limit to query");
+    if(!req?.query?.page) new Error("Please include a page to query");
+    if(!req?.params?.id) new Error("Please include an \"id\" to parameters");
+
+    const perPage = parseInt(req?.query?.limit);
+    const page = Math.max(0, parseInt(req.query.page));
+
+    interactions = await Interaction
+    .find({ "owner._id": req.params.id })
+    .sort({"timeStamp": req?.query?.direction})
+    .limit(perPage)
+    .skip(perPage * (page - 1))
+    .exec(
+      async function(err, data){
+        await Interaction.count().exec(function(err, count) {
+
+          var interactions = {
+            data,
+            page: page,
+            pages: Math.round(count / perPage)
+          }
+          res.interactions = interactions;
+          next();
+        })
+    });
+
     if(interactions === null){
       //404 status means you could not find something
       logger.error("Could not find interactions for user",
@@ -150,6 +178,6 @@ async function getInteractions(req, res, next){
   }
 
   //set response to be equal to interaction
-  res.interactions = interactions;
-  next();
+  // res.interactions = interactions;
+  // next();
 };
