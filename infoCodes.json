@@ -29,6 +29,31 @@
       "code" : "Suc-interaction002",
       "description" : "Get Interaction - Success",
       "file" : "interactions.js",
+    },
+    {
+      "code" : "Suc-contact001",
+      "description" : "Contacts found",
+      "file" : "contacts.js",
+    },
+    {
+      "code" : "Suc-contact002",
+      "description" : "Contact found",
+      "file" : "contacts.js",
+    },
+    {
+      "code" : "Suc-contact003",
+      "description" : "Contact saved",
+      "file" : "contacts.js",
+    },
+    {
+      "code" : "Suc-contact004",
+      "description" : "Contact updated",
+      "file" : "contacts.js",
+    },
+    {
+      "code" : "Suc-contact005",
+      "description" : "Contact deleted",
+      "file" : "contacts.js",
     }
   ],
   "Error":[
@@ -116,11 +141,41 @@
       "code" : "Err-interaction004",
       "description" : "Server Error",
       "file" : "interactions.js",
-    }
+    },
     {
       "code" : "Err-login001",
       "description" : "Unsuccessful request",
       "file" : "login.js",
+    },
+    {
+      "code" : "Err-contact001",
+      "description" : "Server Error (contacts)",
+      "file" : "contacts.js",
+    },
+    {
+      "code" : "Err-contact002",
+      "description" : "Bad data by user",
+      "file" : "contacts.js",
+    },
+    {
+      "code" : "Err-contact003",
+      "description" : "Bad data by user",
+      "file" : "contacts.js",
+    },
+    {
+      "code" : "Err-contact004",
+      "description" : "404 Could not find contact",
+      "file" : "contacts.js",
+    },
+    {
+      "code" : "Err-contact005",
+      "description" : "404 Could not find contact",
+      "file" : "contacts.js",
+    },
+    {
+      "code" : "Err-contact006",
+      "description" : "500 Server Error",
+      "file" : "contacts.js",
     }
   ]
 }

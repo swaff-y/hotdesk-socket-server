@@ -4,6 +4,9 @@ const mongoose = require('mongoose');
 
 //we will need a schema
 const contactSchema = new mongoose.Schema({
+  _id: {
+    type: mongoose.Schema.Types.ObjectId
+  },
   dnid: {
     type: Number,
     required: true,

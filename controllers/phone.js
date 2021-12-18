@@ -21,6 +21,8 @@ module.exports = router;
 
 let SID_SIMS = "";
 
+ctx = {fromNum:0,toNum:0};
+
 //outbound
 //curl -X GET "http://localhost:3003/phone/outbound?PhoneNumber=61450503662&UserId=6173e1c42a990e18eccafbdb"
 router.get('/outbound', async (req,res) => {
@@ -33,6 +35,8 @@ router.get('/outbound', async (req,res) => {
     });
     return res.status(400).json({message: "Please include phone number"})
   }
+
+  if(simulation) ctx.toNum = req?.query?.PhoneNumber.trim();
 
   try{
     SID_SIMS = await bcrypt.hash(String(new Date()),10);
@@ -62,6 +66,8 @@ router.get('/outbound', async (req,res) => {
 //curl -X GET "http://localhost:3003/phone/inbound?From=61450503662&ForwardedFrom=12673994326"
 router.get('/inbound', async (req, res) => {
   logger.debug("Inbound: ", req?.query);
+
+  if(simulation) ctx.fromNum = req?.query?.From?.trim();
 
   const io = req.app.get('socketio');
   io.emit("established", {CallType:"inbound", PhoneNumber: req?.query?.From?.trim(), TimeStamp: Date.now()});
@@ -349,6 +355,10 @@ function handleInbound(req, res, owner){
   res.send(twiml);
 }
 
+function getRandom(min, max) {
+    return Math.floor(Math.random() * (max - min) + min);
+}
+
 function simulationDurations(req, res, type){
   let events = [];
   if(type === "inbound"){
@@ -363,9 +373,13 @@ function simulationDurations(req, res, type){
     if(type === "inbound"){
       data = require(`../simulations/inbound/${action}.json`);
       data.Timestamp = new Date();
+      data.From = ctx.fromNum;
+      data.Caller = ctx.fromNum;
     } else {
       data = require(`../simulations/outbound/${action}.json`);
       data.Timestamp = new Date();
+      data.To = ctx.toNum;
+      data.Called = ctx.toNum;
     }
 
     let eventDuration = 1000;

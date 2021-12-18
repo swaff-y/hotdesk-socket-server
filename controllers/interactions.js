@@ -3,12 +3,13 @@ const express = require('express');
 const router = express.Router();
 const Interaction = require("../models/interaction");
 const logger = require("./../logger").Logger;
+const jwt = require("./jwt");
 
 module.exports = router;
 
 //Get All
-//curl -X GET http://localhost:3006/interaction/
-router.get("/", async (req,res) => {
+//curl -X GET -H 'authorization: Bearer xxx' http://localhost:3006/interaction/
+router.get("/", jwt.authenticateToken, async (req,res) => {
   try{
     //this will get all the different interactions
     const interactions = await Interaction.find();
@@ -28,8 +29,8 @@ router.get("/", async (req,res) => {
   }
 });
 //Get All for user
-//curl -X GET http://localhost:3006/interactions/:id
-router.get("/:id", getInteractions, async (req,res) => {
+//curl -X GET -H 'authorization: Bearer xxx' http://localhost:3006/interactions/:id
+router.get("/:id", jwt.authenticateToken, getInteractions, async (req,res) => {
   try{
     logger.info("Get Interactions for user - Success",
     {
@@ -49,14 +50,14 @@ router.get("/:id", getInteractions, async (req,res) => {
 });
 
 //Get One
-//curl -X GET http://localhost:3006/interaction/6167f42172f1a407b2bcbeef
+//curl -X GET -H 'authorization: Bearer xxx' http://localhost:3006/interaction/6167f42172f1a407b2bcbeef
 //The "getInteraction" middleware will get the interaction with the id
-router.get("/:id", getInteraction, (req,res) => {
+router.get("/:id", jwt.authenticateToken, getInteraction, (req,res) => {
   res.status(200).json(res.interaction);
 });
 
 //Create one
-//curl -X POST -H "Content-Type: application/json" -d '{**data**}' http://localhost:3006/interaction/
+//curl -X POST -H "Content-Type: application/json, authorization: Bearer xxx" -d '{**data**}' http://localhost:3006/interaction/
 router.post("/", async (req,res) => {
   //get interaction details from the json body
 
@@ -75,8 +76,8 @@ router.post("/", async (req,res) => {
 
 //Update One
 //put updates all. Patch only updates the info passed
-//curl -X PATCH -H "Content-Type: application/json" -d '{**data**}' http://localhost:3006/interaction/616a105a06b836c0c411b00a
-router.patch("/:id", getInteraction, async (req,res) => {
+//curl -X PATCH -H "Content-Type: application/json, authorization: Bearer xxx" -d '{**data**}' http://localhost:3006/interaction/616a105a06b836c0c411b00a
+router.patch("/:id", jwt.authenticateToken, getInteraction, async (req,res) => {
   const bodyKeys = Object.keys(req.body);
   const obj = res.interaction;
   for(let i = 0; i < bodyKeys.length; i++){
@@ -95,8 +96,8 @@ router.patch("/:id", getInteraction, async (req,res) => {
 });
 
 //Delete One
-//curl -X DELETE http://localhost:3006/interaction/6167f42172f1a407b2bcbeef
-router.delete("/:id", getInteraction, async (req,res) => {
+//curl -X DELETE 'authorization: Bearer xxx' http://localhost:3006/interaction/6167f42172f1a407b2bcbeef
+router.delete("/:id", jwt.authenticateToken, getInteraction, async (req,res) => {
   try{
     //try remove the interaction
     await res.interaction.remove();
