@@ -142,6 +142,8 @@ async function getInteractions(req, res, next){
 
     interactions = await Interaction
     .find({ "owner._id": req.params.id })
+    .populate('from')
+    .populate('to')
     .sort({"timeStamp": req?.query?.direction})
     .limit(perPage)
     .skip(perPage * (page - 1))

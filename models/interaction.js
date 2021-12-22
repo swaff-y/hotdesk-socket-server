@@ -23,35 +23,17 @@ const interactionSchema = new mongoose.Schema({
     dn: String,
     routeNumber: String
   },
-  // owner:{
-  //   type: Object,
-  //   required: true
-  // },
   timeStamp:{
     type: Number,
     required: true
   },
   from:{
-    _id: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Contact"
-    },
-    firstName: String,
-    lastName: String,
-    dnid: String,
-    email: String,
-    company: String
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Contact"
   },
   to:{
-    _id: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Contact"
-    },
-    firstName: String,
-    lastName: String,
-    dnid: String,
-    email: String,
-    company: String
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Contact"
   },
   type: {
     type: String,

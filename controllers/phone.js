@@ -220,16 +220,10 @@ router.get('/events', async (req, res) => {
         { callSid: req?.query?.CallSid },
         obj,
         { upsert: true },
-        function(err, doc) {
-          if (err) {
-            logger.error("Could not upsert Interaction", err,
-            {
-              contextCode: "Err-phone013",
-              query: req?.query
-            });
-            throw new Error("Could not upsert Interaction");
-          }
-        }).clone();
+        )
+        .populate("from")
+        .populate("to")
+
       return interaction;
     }
 
